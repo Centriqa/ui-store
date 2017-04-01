@@ -10,12 +10,19 @@ export type TModelAttributes = {
     [key: string]: any
 };
 
-export type TPartial<T extends TModelAttributes> = {
-    [P in keyof T]?: T[P];
+export type TValidationRule = (value: any) => string;
+
+export type TValidationRules<T> = {
+    [P in keyof T]?: TValidationRule;
+}
+
+export type TValidationErrors<T> = {
+    [P in keyof T]?: string;
 }
 
 export interface IModelStoreOptions<T> {
     attributes?: T;
+    validationRules: TValidationRules<T>;
 }
 
 
@@ -29,9 +36,15 @@ export abstract class AbstractModelStore<O, T extends TModelAttributes> extends 
 
         this.attributes = observable(options.attributes);
         this.defaultAttributes = options.attributes;
+        this.validationRules = options.validationRules;
+        const validationErrors: TValidationErrors<T> = {};
+        Object.keys(options.validationRules).forEach((rule: keyof T) => validationErrors[rule] = null);
+        this.validationErrors = observable(validationErrors) as any;
     }
 
     protected defaultAttributes: T;
+    public validationRules: TValidationRules<T>;
+    public validationErrors: TValidationErrors<T>;
 
     @observable
     public attributes: T;
@@ -50,6 +63,8 @@ export abstract class AbstractModelStore<O, T extends TModelAttributes> extends 
 
     @action
     public setAttribute(key: keyof T, value: any) {
+        const validation = this.validationRules[key];
+        if (validation) this.validationErrors[key] = validation(value);
         this.attributes[key] = value;
     }
 
@@ -59,10 +74,15 @@ export abstract class AbstractModelStore<O, T extends TModelAttributes> extends 
     }
 
     @action
-    public setAttributes(attrs: TPartial<T>) {
+    public setAttributes(attrs: Partial<T>) {
         Object.keys(attrs).forEach((key: keyof T) => {
-            this.attributes[key] = attrs[key];
+            this.setAttribute(key, attrs[key]);
         })
+    }
+
+    @computed
+    get hasValidationErrors() {
+        return !!Object.keys(this.validationErrors).find(key => !!this.validationErrors[key]);
     }
 
     @action
@@ -74,7 +94,7 @@ export abstract class AbstractModelStore<O, T extends TModelAttributes> extends 
     }
 
     @action
-    public load(id: string, attrs: TPartial<T>) {
+    public load(id: string, attrs: Partial<T>) {
         this._id = id;
         this.setAttributes(attrs);
 
@@ -107,7 +127,6 @@ export interface IApiModelDeleteReq<M extends {}> {
 
 export interface IApiModelStoreOptions<T> extends IModelStoreOptions<T> {
     updateDebounceInterval: number;
-    validationRules: { [key: string]: (value: any) => string };
 }
 
 export abstract class AbstractApiModelStore<O, T> extends AbstractModelStore<O, T> {
@@ -118,8 +137,6 @@ export abstract class AbstractApiModelStore<O, T> extends AbstractModelStore<O, 
         this.validationRules = options.validationRules;
         this.debouncedUpdate = debounce(this.update, options.updateDebounceInterval);
     }
-
-    protected validationRules: { [key: string]: (value: any) => string };
 
     @observable
     public busy?: boolean;
@@ -155,10 +172,10 @@ export abstract class AbstractApiModelStore<O, T> extends AbstractModelStore<O, 
         return promise;
     }
 
-    public abstract apiCreate<M>(req: IApiModelSaveReq<TPartial<T>, M>): Promise<IApiModelFetchRes<T, M>>;
+    public abstract apiCreate<M>(req: IApiModelSaveReq<Partial<T>, M>): Promise<IApiModelFetchRes<T, M>>;
 
     @action
-    public create(id: string, attrs?: TPartial<T>, meta?: {}, optimistic: boolean = false) {
+    public create(id: string, attrs?: Partial<T>, meta?: {}, optimistic: boolean = false) {
         typeCheck('Object', attrs) || (attrs = toJS(this.attributes));
         this.setBusy(true);
         if (optimistic) {
@@ -185,10 +202,10 @@ export abstract class AbstractApiModelStore<O, T> extends AbstractModelStore<O, 
         return promise;
     }
 
-    public abstract apiUpdate<M>(req: IApiModelSaveReq<TPartial<T>, M>): Promise<IApiModelFetchRes<T, M>>;
+    public abstract apiUpdate<M>(req: IApiModelSaveReq<Partial<T>, M>): Promise<IApiModelFetchRes<T, M>>;
 
     @action
-    public update(id: string, attrs?: TPartial<T>, meta?: {}, optimistic: boolean = false) {
+    public update(id: string, attrs?: Partial<T>, meta?: {}, optimistic: boolean = false) {
         if (!typeCheck('String', id)) return;
         typeCheck('Object', attrs) || (attrs = toJS(this.attributes));
         this.setBusy(true);
@@ -213,7 +230,7 @@ export abstract class AbstractApiModelStore<O, T> extends AbstractModelStore<O, 
         return promise;
     }
 
-    protected debouncedUpdate: (id: string, attrs?: TPartial<T>, meta?: {}, optimistic?: boolean) => (id: string, attrs?: T, meta?: {}, optimistic?: boolean) => Promise<IApiModelFetchRes<T, any>>;
+    protected debouncedUpdate: (id: string, attrs?: Partial<T>, meta?: {}, optimistic?: boolean) => (id: string, attrs?: T, meta?: {}, optimistic?: boolean) => Promise<IApiModelFetchRes<T, any>>;
 
 
     public abstract apiDelete<M>(req: IApiModelDeleteReq<M>): Promise<any>;
@@ -245,9 +262,9 @@ export abstract class AbstractApiModelStore<O, T> extends AbstractModelStore<O, 
 
     @action
     public setAttribute(key: keyof T, value: any, update = false, debounce = false) {
-        this.attributes[key] = value;
-        if (update) {
-            const attrs = {} as T;
+        super.setAttribute(key, value);
+        if (update && !this.validationErrors[key]) {
+            const attrs: Partial<T> = {};
             attrs[key] = value;
             if (debounce) this.debouncedUpdate(this._id, attrs, {}, false);
             else this.update(this._id, attrs, {}, false);
@@ -255,16 +272,11 @@ export abstract class AbstractApiModelStore<O, T> extends AbstractModelStore<O, 
     }
 
     @action
-    public setAttributes(attrs: TPartial<T>, update = false) {
-        if (update) {
-            const updates = {} as TPartial<T>;
-            Object.keys(attrs).forEach((key: keyof T) => {
-                updates[key] = attrs[key];
-            });
-
-            this.update(this._id, updates, {}, true);
+    public setAttributes(attrs: Partial<T>, update = false) {
+        super.setAttributes(attrs);
+        if (update && !this.hasValidationErrors) {
+            this.update(this._id, attrs, {}, true);
         }
-        else super.setAttributes(attrs);
     }
 
 }

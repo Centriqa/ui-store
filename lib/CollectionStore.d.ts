@@ -6,9 +6,6 @@ export declare type TCollectionItem = {
     id: string;
     [key: string]: any;
 };
-export declare type TPartial<T extends TCollectionItem> = {
-    [P in keyof T]?: T[P];
-};
 export interface ICollectionStoreOptions<T> {
     items: T[];
 }

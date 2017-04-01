@@ -11,10 +11,6 @@ export type TCollectionItem = {
     [key: string]: any
 };
 
-export type TPartial<T extends TCollectionItem> = {
-    [P in keyof T]?: T[P];
-}
-
 export interface ICollectionStoreOptions<T> {
     items: T[];
 }
