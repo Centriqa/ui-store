@@ -15,5 +15,9 @@
   },
   "scripts": {
     "build": "rm -R ./lib && tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Centriqa/ui-store.git"
   }
 }
