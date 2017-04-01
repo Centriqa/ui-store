@@ -1,0 +1,19 @@
+{
+  "name": "ui-store",
+  "version": "1.0.0",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "author": "Alexandru Cojocaru <alexandru.cojocaru@centriqa.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "bluebird": "^3.5.0",
+    "mobx": "^3.1.7"
+  },
+  "dependencies": {
+    "@types/type-check": "^0.3.27",
+    "type-check": "^0.3.2"
+  },
+  "scripts": {
+    "build": "rm -R ./lib && tsc"
+  }
+}
