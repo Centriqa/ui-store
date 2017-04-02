@@ -282,6 +282,34 @@ export abstract class AbstractApiCollectionStore<O, T extends TCollectionItem, F
     }
 
     @action
+    public getNextPage() {
+        let page = this.props.page;
+        if (page === this.props.count - 1) return;
+        ++page;
+        return this.setProps({
+            page,
+        }, true);
+    }
+
+    @action
+    public getPreviousPage() {
+        let page = this.props.page;
+        if (page === 0) return;
+        --page;
+        return this.setProps({
+            page,
+        }, true);
+    }
+
+    @action
+    public setPageSize(pageSize: number) {
+        return this.setProps({
+            pageSize,
+            page: 0
+        }, true);
+    }
+
+    @action
     public load(data: IApiCollectionFetchRes<T, F, M>) {
         this.setProps(data);
         this.items.replace(data.data);

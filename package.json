@@ -5,6 +5,7 @@
   "types": "./lib/index.d.ts",
   "author": "Alexandru Cojocaru <alexandru.cojocaru@centriqa.com>",
   "license": "MIT",
+  "description": "MOBX-based application state management classes",
   "devDependencies": {
     "bluebird": "^3.5.0",
     "mobx": "^3.1.7"

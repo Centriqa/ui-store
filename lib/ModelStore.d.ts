@@ -12,7 +12,7 @@ export declare type TValidationErrors<T> = {
     [P in keyof T]?: string;
 };
 export interface IModelStoreOptions<T> {
-    attributes?: T;
+    attributes: T;
     validationRules: TValidationRules<T>;
 }
 export declare abstract class AbstractModelStore<O, T extends TModelAttributes> extends AbstractStore<O> {
@@ -24,6 +24,7 @@ export declare abstract class AbstractModelStore<O, T extends TModelAttributes> 
     protected _id: string;
     readonly id: string;
     get(key: keyof T): T[keyof T];
+    protected validate(key: keyof T, value: any): void;
     setAttribute(key: keyof T, value: any): void;
     setId(id: string): void;
     setAttributes(attrs: Partial<T>): void;

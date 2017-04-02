@@ -21,7 +21,7 @@ export type TValidationErrors<T> = {
 }
 
 export interface IModelStoreOptions<T> {
-    attributes?: T;
+    attributes: T;
     validationRules: TValidationRules<T>;
 }
 
@@ -62,9 +62,14 @@ export abstract class AbstractModelStore<O, T extends TModelAttributes> extends 
     }
 
     @action
-    public setAttribute(key: keyof T, value: any) {
+    protected validate(key: keyof T, value: any) {
         const validation = this.validationRules[key];
         if (validation) this.validationErrors[key] = validation(value);
+    }
+
+    @action
+    public setAttribute(key: keyof T, value: any) {
+        this.validate(key, value);
         this.attributes[key] = value;
     }
 
@@ -76,6 +81,7 @@ export abstract class AbstractModelStore<O, T extends TModelAttributes> extends 
     @action
     public setAttributes(attrs: Partial<T>) {
         Object.keys(attrs).forEach((key: keyof T) => {
+            this.validate(key, attrs[key]);
             this.setAttribute(key, attrs[key]);
         })
     }
@@ -181,6 +187,7 @@ export abstract class AbstractApiModelStore<O, T> extends AbstractModelStore<O, 
         if (optimistic) {
             if (id) this.load(id, attrs);
             else throw Error('Optimistic create requires id argument');
+            if (this.hasValidationErrors) return null;
         }
 
         const promise = this.apiCreate({
@@ -209,7 +216,10 @@ export abstract class AbstractApiModelStore<O, T> extends AbstractModelStore<O, 
         if (!typeCheck('String', id)) return;
         typeCheck('Object', attrs) || (attrs = toJS(this.attributes));
         this.setBusy(true);
-        optimistic && this.load(id, attrs);
+        if (optimistic) {
+            this.load(id, attrs);
+            if (this.hasValidationErrors) return null;
+        }
 
         const promise = this.apiUpdate({
             id,
