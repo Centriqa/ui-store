@@ -69,6 +69,9 @@ export declare abstract class AbstractApiCollectionStore<O, T extends TCollectio
     reset(): void;
     sort(field?: string, direction?: 'asc' | 'desc'): Promise<IApiCollectionFetchRes<T, F, M>>;
     getPage(page: number): Promise<IApiCollectionFetchRes<T, F, M>>;
+    getNextPage(): Promise<IApiCollectionFetchRes<T, F, M>>;
+    getPreviousPage(): Promise<IApiCollectionFetchRes<T, F, M>>;
+    setPageSize(pageSize: number): Promise<IApiCollectionFetchRes<T, F, M>>;
     load(data: IApiCollectionFetchRes<T, F, M>): void;
 }
 export interface ISelectableItem extends TCollectionItem {
